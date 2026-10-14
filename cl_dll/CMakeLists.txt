@@ -76,6 +76,7 @@ endif()
 add_library(${CLIENT_LIB} SHARED ${CS_CLIENT_SRC})
 
 set_target_postfix(${CLIENT_LIB})
+target_link_libraries(${CLIENT_LIB} ${CMAKE_DL_LIBS}) # crosshair_code.cpp finds SDL's clipboard
 
 install(TARGETS ${CLIENT_LIB}
 	DESTINATION "${GAME_DIR}/${CLIENT_INSTALL_DIR}/"

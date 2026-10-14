@@ -88,7 +88,11 @@ if(BUILD_MAINUI)
 	# set(XASH_SDK ../../)
 	add_subdirectory(3rdparty/mainui_cpp)
 	# the crosshair options preview draws with the client's crosshair geometry
-	target_sources(menu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cl_dll/crosshair_geom.cpp)
+	target_sources(menu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cl_dll/crosshair_geom.cpp ${CMAKE_CURRENT_SOURCE_DIR}/cl_dll/crosshair_code.cpp)
+	if(POLICY CMP0079)
+		cmake_policy(SET CMP0079 NEW) # link from this directory
+	endif()
+	target_link_libraries(menu ${CMAKE_DL_LIBS})
 	target_include_directories(menu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cl_dll)
 	target_compile_definitions(menu PRIVATE MAINUI_CROSSHAIR_GEOM)
 	yy_thunks_apply(menu)

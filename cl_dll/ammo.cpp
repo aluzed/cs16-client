@@ -35,6 +35,7 @@
 #include "triangleapi.h"
 #include "weapontype.h"
 #include "crosshair_geom.h"
+#include "crosshair_code.h"
 
 #ifndef M_PI
 #define M_PI		3.14159265358979323846	// matches value in gcc v2 math.h
@@ -245,6 +246,65 @@ HSPRITE ghsprBuckets;					// Sprite for top row of weapons menu
 
 #define HISTORY_DRAW_TIME	"5"
 
+static const char *XHair_GetCvar( const char *name )
+{
+	return gEngfuncs.pfnGetCvarString( name );
+}
+
+static void XHair_SetCvar( const char *name, const char *value )
+{
+	gEngfuncs.Cvar_Set( name, value );
+}
+
+// prints the share code of the current crosshair and copies it
+static void CrosshairExport_f( void )
+{
+	xhair_config_t cfg;
+	char code[XHAIR_CODE_MAX];
+
+	XHair_ReadConfig( &cfg, XHair_GetCvar );
+	if( !XHair_Encode( &cfg, code, sizeof( code )))
+	{
+		gEngfuncs.Con_Printf( "crosshair_export: the crosshair doesn't fit in a code\n" );
+		return;
+	}
+
+	gEngfuncs.Con_Printf( "%s\n", code );
+	if( XHair_SetClipboard( code ))
+		gEngfuncs.Con_Printf( "crosshair code copied to the clipboard\n" );
+}
+
+static void CrosshairImport_f( void )
+{
+	xhair_config_t cfg;
+	xhair_import_t info;
+	char code[XHAIR_CODE_MAX * 2] = "";
+
+	if( gEngfuncs.Cmd_Argc() < 2 )
+	{
+		gEngfuncs.Con_Printf( "usage: crosshair_import <code>\n" );
+		return;
+	}
+
+	// a code pasted with spaces arrives as several arguments
+	for( int i = 1; i < gEngfuncs.Cmd_Argc(); i++ )
+		strncat( code, gEngfuncs.Cmd_Argv( i ), sizeof( code ) - strlen( code ) - 1 );
+
+	const int error = XHair_Decode( code, &cfg, &info );
+	if( error != XHAIR_CODE_OK )
+	{
+		gEngfuncs.Con_Printf( "crosshair_import: %s\n", XHair_CodeError( error ));
+		return;
+	}
+
+	XHair_WriteConfig( &cfg, XHair_SetCvar );
+
+	if( info.unknown )
+		gEngfuncs.Con_Printf( "crosshair imported; the code comes from a newer version (%d), %d setting(s) %s ignored%s\n",
+			info.version, info.unknown, info.unknown > 1 ? "were" : "was", info.partial ? ", some may be missing" : "" );
+	else gEngfuncs.Con_Printf( "crosshair imported\n" );
+}
+
 int CHudAmmo::Init(void)
 {
 	gHUD.AddHudElem(this);
@@ -322,6 +382,9 @@ int CHudAmmo::Init(void)
 	xhair_pad_color = CVAR_CREATE( "xhair_pad_color", "0 0 0", FCVAR_ARCHIVE ); // outline r g b [a]
 	xhair_aa = CVAR_CREATE( "xhair_aa", "1", FCVAR_ARCHIVE );                // sub-pixel edges
 	xhair_scale = CVAR_CREATE( "xhair_scale", "1", FCVAR_ARCHIVE );
+
+	gEngfuncs.pfnAddCommand( "crosshair_export", CrosshairExport_f );
+	gEngfuncs.pfnAddCommand( "crosshair_import", CrosshairImport_f );
 
 	return 1;
 }
