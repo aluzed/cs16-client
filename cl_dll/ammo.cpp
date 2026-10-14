@@ -34,6 +34,7 @@
 #include "draw_util.h"
 #include "triangleapi.h"
 #include "weapontype.h"
+#include "crosshair_geom.h"
 
 #ifndef M_PI
 #define M_PI		3.14159265358979323846	// matches value in gcc v2 math.h
@@ -315,6 +316,12 @@ int CHudAmmo::Init(void)
 
 	xhair_color = CVAR_CREATE( "xhair_color", "0 255 0 255", FCVAR_ARCHIVE );
 	xhair_additive = CVAR_CREATE( "xhair_additive", "0", FCVAR_ARCHIVE );
+
+	xhair_style = CVAR_CREATE( "xhair_style", "0", FCVAR_ARCHIVE );          // 0 cross, 1 circle
+	xhair_dot_size = CVAR_CREATE( "xhair_dot_size", "0", FCVAR_ARCHIVE );    // 0: the thickness
+	xhair_pad_color = CVAR_CREATE( "xhair_pad_color", "0 0 0", FCVAR_ARCHIVE ); // outline r g b [a]
+	xhair_aa = CVAR_CREATE( "xhair_aa", "1", FCVAR_ARCHIVE );                // sub-pixel edges
+	xhair_scale = CVAR_CREATE( "xhair_scale", "1", FCVAR_ARCHIVE );
 
 	return 1;
 }
@@ -1283,10 +1290,12 @@ int CHudAmmo::GetWeaponAccuracyFlags( int weaponId )
 
 #define MAX_XHAIR_GAP 15
 
-int CHudAmmo::ScaleForRes( float value, int height )
+static float xhair_scale_value = 1.0f; // xhair_scale, read once per frame by DrawCrosshair
+
+float CHudAmmo::ScaleForRes( float value, int height )
 {
-	/* "default" resolution is 640x480 */
-	return rint( value * ( (float)height / 480.0f ) );
+	/* "default" resolution is 640x480, no rounding: sizes can be fractional */
+	return value * ( (float)height / 480.0f ) * xhair_scale_value;
 }
 
 float CHudAmmo::GetCrosshairGap( int weaponId )
@@ -1464,94 +1473,65 @@ float CHudAmmo::GetCrosshairGap( int weaponId )
 	return xhairGap + xhair_gap->value;
 }
 
-void CHudAmmo::DrawCrosshairSection( int _x0, int _y0, int _x1, int _y1 )
+// "r g b [a]", 0-255 components, into 0-1 floats; a stays unchanged when absent
+static void XHair_ParseColor( const char *string, float rgba[4] )
 {
-	float x0 = (float)_x0;
-	float y0 = (float)_y0;
-	float x1 = (float)_x1;
-	float y1 = (float)_y1;
-	int color[4] = { 0, 255, 0, 255 };
+	float c[4] = { rgba[0] * 255.0f, rgba[1] * 255.0f, rgba[2] * 255.0f, rgba[3] * 255.0f };
 
-	// float top_left[2] = { x0, y0 };
-	// float top_right[2] = { x1, y0 };
-	// float bottom_right[2] = { x1, y1 };
-	// float bottom_left[2] = { x0, y1 };
+	sscanf( string, "%f %f %f %f", &c[0], &c[1], &c[2], &c[3] );
 
-	if ( sscanf( xhair_color->string, "%d %d %d %d", &color[0], &color[1], &color[2], &color[3] ) == 4 )
-	{
-		color[0] = bound( 0, color[0], 255 );
-		color[1] = bound( 0, color[1], 255 );
-		color[2] = bound( 0, color[2], 255 );
-		color[3] = bound( 0, color[3], 255 );
-	}
-	gEngfuncs.pTriAPI->Color4f( color[0] / 255.0f, color[1] / 255.0f, color[2] / 255.0f, color[3] / 255.0f );
-	// gEngfuncs.pTriAPI->Brightness( 1.0f );
-
-	DrawUtils::Draw2DQuad( x0, y0, x1, y1 );
+	for( int i = 0; i < 4; i++ )
+		rgba[i] = bound( 0.0f, c[i], 255.0f ) / 255.0f;
 }
 
-void CHudAmmo::DrawCrosshairPadding( int _pad, int _x0, int _y0, int _x1, int _y1 )
+// one layer of the crosshair: the outline under it, or the crosshair itself
+void CHudAmmo::DrawCrosshairLayer( const xhair_params_t *params, float cx, float cy, bool outline, const float rgba[4] )
 {
-	float pad = (float)_pad;
-	float x0 = (float)_x0;
-	float y0 = (float)_y0;
-	float x1 = (float)_x1;
-	float y1 = (float)_y1;
-	int alpha = 255;
+	static xhair_vertex_t vertices[XHAIR_MAX_VERTICES];
+	const int count = XHair_Build( params, cx, cy, outline, vertices, XHAIR_MAX_VERTICES );
 
-	// float out_top_left[2] = { x0 - pad, y0 - pad };
-	// float out_top_right[2] = { x1 + pad, y0 - pad };
-	// float out_bottom_right[2] = { x1 + pad, y1 + pad };
-	// float out_bottom_left[2] = { x0 - pad, y1 + pad };
-	// float in_top_left[2] = { x0, y0 };
-	// float in_top_right[2] = { x1, y0 };
-	// float in_bottom_right[2] = { x1, y1 };
-	// float in_bottom_left[2] = { x0, y1 };
+	if( !count )
+		return;
 
-	if ( sscanf( xhair_color->string, "%*d %*d %*d %d", &alpha ) == 1 )
+	gEngfuncs.pTriAPI->Begin( TRI_TRIANGLES );
+
+	for( int i = 0; i < count; i++ )
 	{
-		alpha = bound( 0, alpha, 255 );
+		gEngfuncs.pTriAPI->Color4f( rgba[0], rgba[1], rgba[2], rgba[3] * vertices[i].alpha );
+		gEngfuncs.pTriAPI->TexCoord2f( 0.5f, 0.5f );
+		gEngfuncs.pTriAPI->Vertex3f( vertices[i].x, vertices[i].y, 0.0f );
 	}
-	gEngfuncs.pTriAPI->Color4f( 0, 0, 0, alpha / 255.0f );
-	// gEngfuncs.pTriAPI->Brightness( 1.0f );
 
-	DrawUtils::Draw2DQuad( x0 - pad, y0 - pad, x1 + pad, y0 ); // top part
-	DrawUtils::Draw2DQuad( x0 - pad, y1, x1 + pad, y1 + pad ); // bottom part
-	DrawUtils::Draw2DQuad( x0 - pad, y0, x0, y1 );             // left part
-	DrawUtils::Draw2DQuad( x1, y0, x1 + pad, y1 );             // right part
+	gEngfuncs.pTriAPI->End();
 }
 
 void CHudAmmo::DrawCrosshair( int weaponId )
 {
-	int center_x, center_y;
-	int gap, length, thickness;
-	int y0, y1, x0, x1;
-	wrect_t inner;
-	wrect_t outer;
+	const int height = ScreenHeight * gHUD.m_flScale;
+	float color[4] = { 0.0f, 1.0f, 0.0f, 1.0f };
+	float outline_color[4];
+	xhair_params_t params;
 
-	/* calculate the coordinates */
-	center_x = ( ScreenWidth / 2 ) * gHUD.m_flScale;
-	center_y = ( ScreenHeight / 2 ) * gHUD.m_flScale;
+	xhair_scale_value = xhair_scale->value > 0.0f ? xhair_scale->value : 1.0f;
 
-	gap = ScaleForRes( GetCrosshairGap( weaponId ), ScreenHeight * gHUD.m_flScale );
-	length = ScaleForRes( xhair_size->value, ScreenHeight * gHUD.m_flScale );
-	thickness = ScaleForRes( xhair_thick->value, ScreenHeight * gHUD.m_flScale );
-	thickness = max( 1, thickness );
+	params.style = (int)xhair_style->value == XHAIR_STYLE_CIRCLE ? XHAIR_STYLE_CIRCLE : XHAIR_STYLE_CROSS;
+	params.no_top = xhair_t->value != 0.0f;
+	params.gap = ScaleForRes( GetCrosshairGap( weaponId ), height );
+	params.length = ScaleForRes( xhair_size->value, height );
+	params.thickness = max( ScaleForRes( xhair_thick->value, height ), xhair_aa->value ? 0.1f : 1.0f );
+	params.dot = xhair_dot->value != 0.0f;
+	params.dot_size = ScaleForRes( xhair_dot_size->value, height );
+	params.outline = xhair_pad->value; // pixels, not scaled
+	params.antialias = xhair_aa->value != 0.0f;
 
-	inner.left = ( center_x - gap - thickness / 2 );
-	inner.right = ( inner.left + 2 * gap + thickness );
-	inner.top = ( center_y - gap - thickness / 2 );
-	inner.bottom = ( inner.top + 2 * gap + thickness );
+	// the outline takes the crosshair's alpha unless it has its own
+	XHair_ParseColor( xhair_color->string, color );
+	outline_color[0] = outline_color[1] = outline_color[2] = 0.0f;
+	outline_color[3] = color[3];
+	XHair_ParseColor( xhair_pad_color->string, outline_color );
 
-	outer.left = ( inner.left - length );
-	outer.right = ( inner.right + length );
-	outer.top = ( inner.top - length );
-	outer.bottom = ( inner.bottom + length );
-
-	y0 = ( center_y - thickness / 2 );
-	x0 = ( center_x - thickness / 2 );
-	y1 = ( y0 + thickness );
-	x1 = ( x0 + thickness );
+	const float cx = XHair_Centre( ScreenWidth * gHUD.m_flScale );
+	const float cy = XHair_Centre( height );
 
 	gEngfuncs.pTriAPI->Brightness( 1.0f );
 	gEngfuncs.pTriAPI->CullFace( TRI_NONE );
@@ -1559,40 +1539,16 @@ void CHudAmmo::DrawCrosshair( int weaponId )
 	gRenderAPI.GL_SelectTexture( 0 );
 	gRenderAPI.GL_Bind( 0, gHUD.m_WhiteTex );
 
-	if ( xhair_additive->value )
+	// the outline goes under the crosshair, always blended
+	gEngfuncs.pTriAPI->RenderMode( kRenderTransAlpha );
+	if( params.outline > 0.0f )
+		DrawCrosshairLayer( &params, cx, cy, true, outline_color );
+
+	if( xhair_additive->value )
 		gEngfuncs.pTriAPI->RenderMode( kRenderTransAdd );
-	else
-		gEngfuncs.pTriAPI->RenderMode( kRenderTransAlpha );
 
-	if ( xhair_dot->value )
-		DrawCrosshairSection( x0, y0, x1, y1 );
-
-	if ( !xhair_t->value )
-		DrawCrosshairSection( x0, outer.top, x1, inner.top );
-
-	DrawCrosshairSection( x0, inner.bottom, x1, outer.bottom );
-	DrawCrosshairSection( outer.left, y0, inner.left, y1 );
-	DrawCrosshairSection( inner.right, y0, outer.right, y1 );
-
-	if ( xhair_additive->value )
-		gEngfuncs.pTriAPI->RenderMode( kRenderTransAlpha );
-
-	/* draw padding if wanted */
-	if ( xhair_pad->value )
-	{
-		/* don't scale this */
-		int pad = (int)xhair_pad->value;
-
-		if ( xhair_dot->value )
-			DrawCrosshairPadding( pad, x0, y0, x1, y1 );
-
-		if ( !xhair_t->value )
-			DrawCrosshairPadding( pad, x0, outer.top, x1, inner.top );
-
-		DrawCrosshairPadding( pad, x0, inner.bottom, x1, outer.bottom );
-		DrawCrosshairPadding( pad, outer.left, y0, inner.left, y1 );
-		DrawCrosshairPadding( pad, inner.right, y0, outer.right, y1 );
-	}
+	DrawCrosshairLayer( &params, cx, cy, false, color );
+	gEngfuncs.pTriAPI->RenderMode( kRenderTransAlpha );
 }
 
 void CHudAmmo::DrawCrosshair()

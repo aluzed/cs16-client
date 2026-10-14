@@ -175,12 +175,11 @@ public:
 	void CalcCrosshairDrawMode();
 	void CalcCrosshairColor();
 
-	static int ScaleForRes( float value, int height );
+	static float ScaleForRes( float value, int height );
 	float GetCrosshairGap( int weaponId );
 	void DrawCrosshair( int weaponId );
 	static int GetWeaponAccuracyFlags( int weaponId );
-	void DrawCrosshairSection( int _x0, int _y0, int _x1, int _y1 );
-	void DrawCrosshairPadding( int _pad, int _x0, int _y0, int _x1, int _y1 );
+	void DrawCrosshairLayer( const struct xhair_params_t *params, float cx, float cy, bool outline, const float rgba[4] );
 
 	int DrawWList(float flTime);
 	CHudMsgFunc(CurWeapon);
@@ -256,6 +255,12 @@ private:
 
 	cvar_t *xhair_color;
 	cvar_t *xhair_additive;
+
+	cvar_t *xhair_style;
+	cvar_t *xhair_dot_size;
+	cvar_t *xhair_pad_color;
+	cvar_t *xhair_aa;
+	cvar_t *xhair_scale;
 
 	cvar_t *cl_crosshair_color;
 	cvar_t *cl_crosshair_translucent;
