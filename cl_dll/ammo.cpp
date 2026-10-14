@@ -1484,25 +1484,36 @@ static void XHair_ParseColor( const char *string, float rgba[4] )
 		rgba[i] = bound( 0.0f, c[i], 255.0f ) / 255.0f;
 }
 
-// one layer of the crosshair: the outline under it, or the crosshair itself
-void CHudAmmo::DrawCrosshairLayer( const xhair_params_t *params, float cx, float cy, bool outline, const float rgba[4] )
+// one layer of the crosshair, the outline under it or the crosshair itself:
+// rectangles of whole screen pixels, each of one colour, so that the shade
+// model the 3D view leaves (GL_FLAT after studio models) can't change them
+void CHudAmmo::DrawCrosshairLayer( const xhair_params_t *params, float cx, float cy, bool outline, const float rgba[4], bool additive )
 {
-	static xhair_vertex_t vertices[XHAIR_MAX_VERTICES];
-	const int count = XHair_Build( params, cx, cy, outline, vertices, XHAIR_MAX_VERTICES );
+	static xhair_rect_t rects[XHAIR_MAX_RECTS];
+	const int count = XHair_Build( params, cx, cy, outline, rects, XHAIR_MAX_RECTS );
 
 	if( !count )
 		return;
 
-	gEngfuncs.pTriAPI->Begin( TRI_TRIANGLES );
+	gEngfuncs.pTriAPI->RenderMode( additive ? kRenderTransAdd : kRenderTransAlpha );
+	gEngfuncs.pTriAPI->Begin( TRI_QUADS );
 
 	for( int i = 0; i < count; i++ )
 	{
-		gEngfuncs.pTriAPI->Color4f( rgba[0], rgba[1], rgba[2], rgba[3] * vertices[i].alpha );
+		const xhair_rect_t *rect = &rects[i];
+		const float x0 = rect->x, y0 = rect->y;
+		const float x1 = rect->x + rect->w, y1 = rect->y + rect->h;
+
+		gEngfuncs.pTriAPI->Color4f( rgba[0], rgba[1], rgba[2], rgba[3] * rect->alpha );
 		gEngfuncs.pTriAPI->TexCoord2f( 0.5f, 0.5f );
-		gEngfuncs.pTriAPI->Vertex3f( vertices[i].x, vertices[i].y, 0.0f );
+		gEngfuncs.pTriAPI->Vertex3f( x0, y0, 0.0f );
+		gEngfuncs.pTriAPI->Vertex3f( x0, y1, 0.0f );
+		gEngfuncs.pTriAPI->Vertex3f( x1, y1, 0.0f );
+		gEngfuncs.pTriAPI->Vertex3f( x1, y0, 0.0f );
 	}
 
 	gEngfuncs.pTriAPI->End();
+	gEngfuncs.pTriAPI->RenderMode( kRenderTransAlpha );
 }
 
 void CHudAmmo::DrawCrosshair( int weaponId )
@@ -1535,20 +1546,14 @@ void CHudAmmo::DrawCrosshair( int weaponId )
 
 	gEngfuncs.pTriAPI->Brightness( 1.0f );
 	gEngfuncs.pTriAPI->CullFace( TRI_NONE );
-
 	gRenderAPI.GL_SelectTexture( 0 );
 	gRenderAPI.GL_Bind( 0, gHUD.m_WhiteTex );
 
 	// the outline goes under the crosshair, always blended
-	gEngfuncs.pTriAPI->RenderMode( kRenderTransAlpha );
 	if( params.outline > 0.0f )
-		DrawCrosshairLayer( &params, cx, cy, true, outline_color );
+		DrawCrosshairLayer( &params, cx, cy, true, outline_color, false );
 
-	if( xhair_additive->value )
-		gEngfuncs.pTriAPI->RenderMode( kRenderTransAdd );
-
-	DrawCrosshairLayer( &params, cx, cy, false, color );
-	gEngfuncs.pTriAPI->RenderMode( kRenderTransAlpha );
+	DrawCrosshairLayer( &params, cx, cy, false, color, xhair_additive->value != 0.0f );
 }
 
 void CHudAmmo::DrawCrosshair()

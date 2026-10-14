@@ -179,7 +179,7 @@ public:
 	float GetCrosshairGap( int weaponId );
 	void DrawCrosshair( int weaponId );
 	static int GetWeaponAccuracyFlags( int weaponId );
-	void DrawCrosshairLayer( const struct xhair_params_t *params, float cx, float cy, bool outline, const float rgba[4] );
+	void DrawCrosshairLayer( const struct xhair_params_t *params, float cx, float cy, bool outline, const float rgba[4], bool additive );
 
 	int DrawWList(float flTime);
 	CHudMsgFunc(CurWeapon);
