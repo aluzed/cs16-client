@@ -1288,16 +1288,6 @@ int CHudAmmo::GetWeaponAccuracyFlags( int weaponId )
 	return ACCURACY_NONE;
 }
 
-#define MAX_XHAIR_GAP 15
-
-static float xhair_scale_value = 1.0f; // xhair_scale, read once per frame by DrawCrosshair
-
-float CHudAmmo::ScaleForRes( float value, int height )
-{
-	/* "default" resolution is 640x480, no rounding: sizes can be fractional */
-	return value * ( (float)height / 480.0f ) * xhair_scale_value;
-}
-
 float CHudAmmo::GetCrosshairGap( int weaponId )
 {
 	static float xhairGap;
@@ -1452,36 +1442,15 @@ float CHudAmmo::GetCrosshairGap( int weaponId )
 	float deltaTime = clientTime - xhairPrevTime;
 	xhairPrevTime = clientTime;
 
-	if ( xhairShotsFired <= lastShotsFired )
-	{
-		// decay the crosshair as if we were always running at 100 fps
-		xhairGap -= ( 100 * deltaTime ) * ( 0.013f * xhairGap + 0.1f );
-	}
-	else
-	{
-		xhairGap += deltaGap * xhair_dynamic_scale->value;
-		xhairGap = min( xhairGap, MAX_XHAIR_GAP );
-	}
+	xhairGap = XHair_StepGap( xhairGap, minGap, deltaGap * xhair_dynamic_scale->value,
+		xhairShotsFired > lastShotsFired, deltaTime );
 
 	if ( xhairShotsFired > 600 )
 		xhairShotsFired = 1;
 
 	lastShotsFired = xhairShotsFired;
 
-	xhairGap = max( xhairGap, minGap );
-
 	return xhairGap + xhair_gap->value;
-}
-
-// "r g b [a]", 0-255 components, into 0-1 floats; a stays unchanged when absent
-static void XHair_ParseColor( const char *string, float rgba[4] )
-{
-	float c[4] = { rgba[0] * 255.0f, rgba[1] * 255.0f, rgba[2] * 255.0f, rgba[3] * 255.0f };
-
-	sscanf( string, "%f %f %f %f", &c[0], &c[1], &c[2], &c[3] );
-
-	for( int i = 0; i < 4; i++ )
-		rgba[i] = bound( 0.0f, c[i], 255.0f ) / 255.0f;
 }
 
 // one layer of the crosshair, the outline under it or the crosshair itself:
@@ -1519,27 +1488,22 @@ void CHudAmmo::DrawCrosshairLayer( const xhair_params_t *params, float cx, float
 void CHudAmmo::DrawCrosshair( int weaponId )
 {
 	const int height = ScreenHeight * gHUD.m_flScale;
-	float color[4] = { 0.0f, 1.0f, 0.0f, 1.0f };
-	float outline_color[4];
+	float color[4], outline_color[4];
 	xhair_params_t params;
 
-	xhair_scale_value = xhair_scale->value > 0.0f ? xhair_scale->value : 1.0f;
+	xhair_settings_t settings;
 
-	params.style = (int)xhair_style->value == XHAIR_STYLE_CIRCLE ? XHAIR_STYLE_CIRCLE : XHAIR_STYLE_CROSS;
-	params.no_top = xhair_t->value != 0.0f;
-	params.gap = ScaleForRes( GetCrosshairGap( weaponId ), height );
-	params.length = ScaleForRes( xhair_size->value, height );
-	params.thickness = max( ScaleForRes( xhair_thick->value, height ), xhair_aa->value ? 0.1f : 1.0f );
-	params.dot = xhair_dot->value != 0.0f;
-	params.dot_size = ScaleForRes( xhair_dot_size->value, height );
-	params.outline = xhair_pad->value; // pixels, not scaled
-	params.antialias = xhair_aa->value != 0.0f;
-
-	// the outline takes the crosshair's alpha unless it has its own
-	XHair_ParseColor( xhair_color->string, color );
-	outline_color[0] = outline_color[1] = outline_color[2] = 0.0f;
-	outline_color[3] = color[3];
-	XHair_ParseColor( xhair_pad_color->string, outline_color );
+	settings.style = (int)xhair_style->value;
+	settings.t = xhair_t->value != 0.0f;
+	settings.size = xhair_size->value;
+	settings.thick = xhair_thick->value;
+	settings.dot = xhair_dot->value != 0.0f;
+	settings.dot_size = xhair_dot_size->value;
+	settings.pad = xhair_pad->value;
+	settings.aa = xhair_aa->value != 0.0f;
+	settings.scale = xhair_scale->value;
+	XHair_SetupParams( &params, &settings, GetCrosshairGap( weaponId ), height );
+	XHair_ParseColors( xhair_color->string, xhair_pad_color->string, color, outline_color );
 
 	const float cx = XHair_Centre( ScreenWidth * gHUD.m_flScale );
 	const float cy = XHair_Centre( height );

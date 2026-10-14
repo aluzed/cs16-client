@@ -175,7 +175,6 @@ public:
 	void CalcCrosshairDrawMode();
 	void CalcCrosshairColor();
 
-	static float ScaleForRes( float value, int height );
 	float GetCrosshairGap( int weaponId );
 	void DrawCrosshair( int weaponId );
 	static int GetWeaponAccuracyFlags( int weaponId );

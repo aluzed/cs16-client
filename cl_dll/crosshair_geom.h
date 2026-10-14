@@ -40,6 +40,35 @@ struct xhair_rect_t
 
 #define XHAIR_MAX_RECTS 4096
 
+// the xhair_* cvars that shape the crosshair, in their own units
+struct xhair_settings_t
+{
+	int style;        // xhair_style
+	bool t;           // xhair_t
+	float size;       // xhair_size, 640x480 units
+	float thick;      // xhair_thick, 640x480 units
+	bool dot;         // xhair_dot
+	float dot_size;   // xhair_dot_size, 640x480 units
+	float pad;        // xhair_pad, screen pixels
+	bool aa;          // xhair_aa
+	float scale;      // xhair_scale
+};
+
+#define XHAIR_MAX_GAP 15.0f // dynamic gap ceiling, 640x480 units
+
+// Parameters of a crosshair drawn on a screen of the given height in
+// pixels, gap being the distance in 640x480 units (dynamic part and
+// xhair_gap included).
+void XHair_SetupParams( xhair_params_t *p, const xhair_settings_t *s, float gap, int height );
+
+// xhair_color and xhair_pad_color ("r g b [a]", 0-255) into 0-1 floats; the
+// outline takes the crosshair's alpha unless it gives its own.
+void XHair_ParseColors( const char *color, const char *outline, float rgba[4], float outline_rgba[4] );
+
+// One frame of the dynamic gap: it grows by delta when a shot was fired,
+// otherwise decays as if the game ran at 100 fps, never below min_gap.
+float XHair_StepGap( float gap, float min_gap, float delta, bool fired, float frametime );
+
 // Fills out with the pixel rectangles of the crosshair centred on cx, cy
 // (screen pixels, pixel i spanning [i, i + 1]): the outline layer when
 // outline is true, the crosshair itself otherwise. Rectangles of a layer

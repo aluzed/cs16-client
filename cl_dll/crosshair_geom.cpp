@@ -11,6 +11,7 @@ bar to a handful of rectangles.
 */
 
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 #include "crosshair_geom.h"
 
@@ -275,4 +276,50 @@ int XHair_Build( const xhair_params_t *p, float cx, float cy, bool outline, xhai
 float XHair_Centre( int size )
 {
 	return floorf( size * 0.5f ) + 0.5f;
+}
+
+void XHair_SetupParams( xhair_params_t *p, const xhair_settings_t *s, float gap, int height )
+{
+	// "default" resolution is 640x480, no rounding: sizes can be fractional
+	const float units = (float)height / 480.0f * ( s->scale > 0.0f ? s->scale : 1.0f );
+
+	p->style = s->style == XHAIR_STYLE_CIRCLE ? XHAIR_STYLE_CIRCLE : XHAIR_STYLE_CROSS;
+	p->no_top = s->t;
+	p->gap = gap * units;
+	p->length = s->size * units;
+	p->thickness = fmaxf( s->thick * units, s->aa ? 0.1f : 1.0f );
+	p->dot = s->dot;
+	p->dot_size = s->dot_size * units;
+	p->outline = s->pad; // pixels, not scaled
+	p->antialias = s->aa;
+}
+
+// "r g b [a]", 0-255 components, into 0-1 floats; a stays unchanged when absent
+static void XHair_ParseColor( const char *string, float rgba[4] )
+{
+	float c[4] = { rgba[0] * 255.0f, rgba[1] * 255.0f, rgba[2] * 255.0f, rgba[3] * 255.0f };
+
+	sscanf( string, "%f %f %f %f", &c[0], &c[1], &c[2], &c[3] );
+
+	for( int i = 0; i < 4; i++ )
+		rgba[i] = fminf( fmaxf( c[i], 0.0f ), 255.0f ) / 255.0f;
+}
+
+void XHair_ParseColors( const char *color, const char *outline, float rgba[4], float outline_rgba[4] )
+{
+	rgba[0] = 0.0f; rgba[1] = 1.0f; rgba[2] = 0.0f; rgba[3] = 1.0f;
+	XHair_ParseColor( color, rgba );
+
+	outline_rgba[0] = outline_rgba[1] = outline_rgba[2] = 0.0f;
+	outline_rgba[3] = rgba[3];
+	XHair_ParseColor( outline, outline_rgba );
+}
+
+float XHair_StepGap( float gap, float min_gap, float delta, bool fired, float frametime )
+{
+	if( fired )
+		gap = fminf( gap + delta, XHAIR_MAX_GAP );
+	else gap -= ( 100.0f * frametime ) * ( 0.013f * gap + 0.1f );
+
+	return fmaxf( gap, min_gap );
 }
