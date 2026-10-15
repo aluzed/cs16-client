@@ -15,6 +15,13 @@ Important contributors:
 * [Alprnn357](https://github.com/Alprnn357), touch menus maintainer.
 * [wh1tesh1t](https://github.com/wh1tesh1t), [pwd491](https://github.com/pwd491), [Elinsrc](https://github.com/Elinsrc), [xiaodo1337](https://github.com/xiaodo1337), [nekonomicon](https://github.com/nekonomicon), [lewa-j](https://github.com/lewa-j) and others for minor contributions.
 
+## This fork
+This fork ([aluzed/cs16-client](https://github.com/aluzed/cs16-client)) goes with the [aluzed/xash3d-fwgs](https://github.com/aluzed/xash3d-fwgs) engine and its Vulkan renderer. Its menu is the `crosshair-options` branch of [aluzed/mainui_cpp](https://github.com/aluzed/mainui_cpp). It adds:
+
+* **A crosshair options page** with a pixel exact preview of the enhanced crosshair (`xhair_*`), **presets** and **share codes** (`crosshair_export`, `crosshair_import`): copy a code, paste it on another client.
+* **A "Vulkan renderer" section in the video options**: the rendering preset (Classic, Low, Medium, High and Ultra with ray tracing) and the ray traced shadows, ambient occlusion, reflections and lighting, applied at once. A status line says what is missing (the Vulkan renderer, or a GPU and driver that trace rays); see the engine's `Documentation/ref-vk.md`.
+* **64-bit Windows builds** used as a standalone set: the client, the menu, ReGameDLL_CS and YaPB with the 64-bit engine, the game data read from a Steam install with `-rodir`. Ray tracing on AMD needs it: AMD's 32-bit Vulkan driver has none. See the engine's `docs/building-vulkan-renderer.md`, section Windows.
+
 ## Download
 You can download a build at the `Releases` section, or use these links for common platforms:
 * [Android](https://github.com/Velaron/cs16-client/releases/download/continuous/CS16Client-Android.apk)
@@ -69,6 +76,7 @@ cmake -A Win32 -S . -B build
 cmake --build build --config Release
 cmake --install build --prefix <path-to-your-installation>
 ```
+For a 64-bit build (libraries named `*_amd64.dll`), use `-A x64`; with Visual Studio 2026, `-G "Visual Studio 18 2026" -DENABLE_YY_THUNKS=OFF`.
 ### Linux and macOS
 ```shell
 cmake -S . -B build
