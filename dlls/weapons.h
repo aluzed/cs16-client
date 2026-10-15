@@ -1233,6 +1233,32 @@ public:
 	unsigned short m_usCreateSmoke;
 };
 
+// molotov and incendiary grenade: the smoke grenade's models until the bottle has its own
+class CMolotov : public CBasePlayerWeapon
+{
+public:
+	void Spawn(void);
+	void Precache(void);
+	int GetItemInfo(ItemInfo *p);
+	BOOL CanDeploy(void);
+	BOOL CanDrop(void) { return FALSE; }
+	BOOL Deploy(void);
+	void Holster(int skiplocal);
+	float GetMaxSpeed(void) { return m_fMaxSpeed; }
+	int iItemSlot(void) { return WPNSLOT_GRENADE; }
+	void PrimaryAttack(void);
+	void WeaponIdle(void);
+
+	BOOL UseDecrement(void)
+	{
+#ifdef CLIENT_WEAPONS
+		return TRUE;
+#else
+		return FALSE;
+#endif
+	}
+};
+
 class CTMP : public CBasePlayerWeapon
 {
 public:

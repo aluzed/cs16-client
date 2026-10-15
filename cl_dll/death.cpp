@@ -257,6 +257,10 @@ int CHudDeathNotice :: MsgFunc_DeathMsg( const char *pszName, int iSize, void *p
 	// Find the sprite in the list
 	int spr = gHUD.GetSpriteIndex( killedwith );
 
+	// the molotov's fire has no icon in hud.txt yet: the grenade's
+	if( spr == -1 && !strcmp( killedwith, "d_molotov" ))
+		spr = gHUD.GetSpriteIndex( "d_grenade" );
+
 	rgDeathNoticeList[i].iId = spr;
 
 	rgDeathNoticeList[i].flDisplayTime = gHUD.m_flTime + hud_deathnotice_time->value;

@@ -1368,6 +1368,7 @@ float CHudAmmo::GetCrosshairGap( int weaponId )
 	case WEAPON_P228:
 	case WEAPON_HEGRENADE:
 	case WEAPON_SMOKEGRENADE:
+	case WEAPON_MOLOTOV:
 	case WEAPON_FIVESEVEN:
 	case WEAPON_USP:
 	case WEAPON_GLOCK18:

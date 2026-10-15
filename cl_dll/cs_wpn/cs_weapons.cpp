@@ -101,6 +101,7 @@ static CSCOUT g_SCOUT;
 static CSG550 g_SG550;
 static CSG552 g_SG552;
 static CSmokeGrenade g_SmokeGrenade;
+static CMolotov g_Molotov;
 static CTMP g_TMP;
 static CUMP45 g_UMP45;
 static CUSP g_USP;
@@ -898,6 +899,7 @@ void HUD_InitClientWeapons( void )
 		HUD_PrepEntity( &g_MAC10, &player);
 		HUD_PrepEntity( &g_AUG, &player);
 		HUD_PrepEntity( &g_SmokeGrenade, &player);
+		HUD_PrepEntity( &g_Molotov, &player);
 		HUD_PrepEntity( &g_ELITE, &player);
 		HUD_PrepEntity( &g_FiveSeven, &player);
 		HUD_PrepEntity( &g_UMP45, &player);
@@ -1049,6 +1051,10 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 
 		case WEAPON_SMOKEGRENADE:
 			pWeapon = &g_SmokeGrenade;
+			break;
+
+		case WEAPON_MOLOTOV:
+			pWeapon = &g_Molotov;
 			break;
 
 		case WEAPON_ELITE:

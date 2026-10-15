@@ -65,7 +65,11 @@ enum WeaponIdType
 	WEAPON_AK47,
 	WEAPON_KNIFE,
 	WEAPON_P90,
-	WEAPON_SHIELDGUN = 99
+	WEAPON_SHIELDGUN = 99,
+
+	// the molotov (terrorists) and incendiary grenade (counter-terrorists):
+	// id 2 was never used by Counter-Strike 1.6 (ReGameDLL_CS does the same)
+	WEAPON_MOLOTOV = WEAPON_GLOCK,
 };
 
 enum AutoBuyClassType
