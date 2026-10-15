@@ -19,6 +19,7 @@ Important contributors:
 This fork ([aluzed/cs16-client](https://github.com/aluzed/cs16-client)) goes with the [aluzed/xash3d-fwgs](https://github.com/aluzed/xash3d-fwgs) engine and its Vulkan renderer. Its menu is the `crosshair-options` branch of [aluzed/mainui_cpp](https://github.com/aluzed/mainui_cpp). It adds:
 
 * **A crosshair options page** with a pixel exact preview of the enhanced crosshair (`xhair_*`), **presets** and **share codes** (`crosshair_export`, `crosshair_import`): copy a code, paste it on another client.
+* **CS2's utility and economy**: a molotov (T) and an incendiary grenade (CT) in the equipment menu (6), night vision moved to 9; weapons come with their full ammo, ammo isn't bought (`mp_buy_ammo 0`, `mp_refill_bpammo_weapons 2` in ReGameDLL_CS).
 * **A "Vulkan renderer" section in the video options**: the rendering preset (Classic, Low, Medium, High and Ultra with ray tracing) and the ray traced shadows, ambient occlusion, reflections and lighting, applied at once. A status line says what is missing (the Vulkan renderer, or a GPU and driver that trace rays); see the engine's `Documentation/ref-vk.md`.
 * **64-bit Windows builds** used as a standalone set: the client, the menu, ReGameDLL_CS and YaPB with the 64-bit engine, the game data read from a Steam install with `-rodir`. Ray tracing on AMD needs it: AMD's 32-bit Vulkan driver has none. See the engine's `docs/building-vulkan-renderer.md`, section Windows.
 
